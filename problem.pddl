@@ -12,15 +12,14 @@
         pulley - pulley
         switch - switch
         wire - wire
-        gripper - gripper
-        ;tool - tool
+        left right - gripper
+        tool - tool
     )
 
     (:init
-        (free gripper)
         (at-robby working_table)
         (at door_frame working_table)
-        ;(at-tool tool working_table)
+        (at-tool tool working_table)
         (at motor warehouse)
         (at regulator_mechanism warehouse)
         (at mounting_bracket warehouse)
@@ -28,11 +27,14 @@
         (at pulley warehouse)
         (at switch warehouse)
         (at wire warehouse)
+        (free left)
+        (free right)
+        (fixed door_frame)
 
     )
 
     (:goal (and
-        (at-robby warehouse)
+        (fixed mounting_bracket)
     ))
 
 )
