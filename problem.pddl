@@ -12,6 +12,7 @@
         pulley - pulley
         switch - switch
         wire - wire
+        battery - battery
         left right - gripper
         tool - tool
     )
@@ -27,6 +28,7 @@
         (at pulley warehouse)
         (at switch warehouse)
         (at wire warehouse)
+        (at battery working_table)
         (free left)
         (free right)
         (fixed door_frame)
@@ -34,7 +36,7 @@
     )
 
     (:goal (and
-        (fixed mounting_bracket)
-    ))
+        (connected_motor_to_battery) (fixed mounting_bracket) (regulator_mechanism_fixed_to_motor) (cable_tensioned))
+    )
 
 )

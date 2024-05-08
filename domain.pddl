@@ -4,8 +4,7 @@
 
 (:types 
         working_table warehouse - site
-        component 
-        door_frame motor regulator_mechanism mounting_bracket cable pulley switch wire - component ;types of components
+        door_frame motor regulator_mechanism mounting_bracket cable pulley switch wire battery - component ;types of components
         left right - gripper 
         tool
 ) 
@@ -16,25 +15,29 @@
     (at-tool ?t - tool ?s - site) ;tool ?t is at site ?s
 
     (free ?g - gripper)
+    (distinct ?g1 - gripper ?g2 - gripper) ; grippers are distinct
     (picked_up ?c - component ?g - gripper)
     (picked_tool ?t - tool ?g - gripper)
     (manipulated ?c - component)
     (fixed ?c - component)
     (identified_component ?c - component)
-    (identified_mounting_location ?c - component)
+    (identified_mounting_location ?c - component ?d - door_frame)
     (mounted_component ?c - component)  
 
     ; MOTOR INSTALLATION 
-    (motor_aligned) ;Rimosso il parametro ?m - motor, controlla che sia sempre corretto
+    (motor_aligned ?m - motor) 
 
     ; REGULATOR MECHANISM INSTALLATION
-    (regulator_mechanism_fixed_to_motor) ;Rimosso il parametro ?r, controlla che sia sempre corretto
+    (regulator_mechanism_fixed_to_motor ?r - regulator_mechanism) 
 
     ; PULLEY INSTALLATION
-    (pulley_tensioned)
+    (cable_installed ?c - cable)
+    (cable_tensioned ?c - cable)
     
     ; WIRE INSTALLATION
-    (connected_switch_to_wire)
+    (connected_switch_to_wire ?s - switch ?wi - wire)
+    (connected_wire_to_motor ?wi - wire ?m - motor) 
+    (connected_motor_to_battery ?m - motor ?b - battery)
 )
 
 (:action robot_move
@@ -45,31 +48,31 @@
 
 (:action pick_up
     :parameters (?c - component ?g - gripper ?s - site)
-    :precondition (and (at-robby ?s) (at ?c ?s) (free ?g) (not(fixed ?c)) (not(picked_up ?c ?g)))
+    :precondition (and (at-robby ?s) (at ?c ?s) (identified_component ?c) (free ?g) (not(fixed ?c)) (not(picked_up ?c ?g))) ; Before pick_up I need to identify the component and it should not be fixed
     :effect (and (picked_up ?c ?g) (not(free ?g)))
 )
 
 (:action put_down
     :parameters (?c - component ?g - gripper ?s - site)
     :precondition (and (at-robby ?s) (picked_up ?c ?g))
-    :effect (and (at ?c ?s) (not(picked_up ?c ?g)) (free ?g))
+    :effect (and (at ?c ?s) (not(picked_up ?c ?g)) (free ?g) (not(identified_component ?c))) ; When a component is put down, it is not identified anymore
 )
 
 (:action identify_component
-    :parameters (?c - component ?w - working_table)
-    :precondition (and (at ?c ?w) (at-robby ?w) (not(identified_component ?c)))
+    :parameters (?c - component ?s - site)
+    :precondition (and (at ?c ?s) (at-robby ?s) (not(identified_component ?c)))
     :effect (and (identified_component ?c))
 )  
 
 (:action identify_mounting_location
-    :parameters (?c - component ?w - working_table)
-    :precondition (and (at ?c ?w) (at-robby ?w) (not(identified_mounting_location ?c)))
-    :effect (and (identified_mounting_location ?c))
+    :parameters (?c - component ?d - door_frame ?w - working_table)
+    :precondition (and (at ?c ?w) (at-robby ?w) (at ?d ?w) (not(identified_mounting_location ?c ?d)))
+    :effect (and (identified_mounting_location ?c ?d))
 )
     
 (:action manipulate_component
-        :parameters (?c - component ?g - gripper)
-        :precondition (and (identified_component ?c) (picked_up ?c ?g))
+        :parameters (?c - component ?g - gripper ?d - door_frame)
+        :precondition (and (identified_component ?c) (identified_mounting_location ?c ?d) (picked_up ?c ?g))
         :effect (and (manipulated ?c))
 )
 
@@ -94,45 +97,63 @@
 ; MOTOR INSTALLATION
 (:action align_motor
     :parameters (?g - gripper ?m - motor ?w - working_table ?d - door_frame)
-    :precondition (and (at ?m ?w) (at-robby ?w) (at ?d ?w) (manipulated ?m) (picked_up ?m ?g) (identified_mounting_location ?m) (not(motor_aligned)))
-    :effect (and (motor_aligned) (fixed ?m) (free ?g) (not(identified_mounting_location ?m)) (not(identified_component ?m))) ; The component is not identified anymore, since it's position is changed
+    :precondition (and (at ?m ?w) (at-robby ?w) (at ?d ?w) (manipulated ?m) (picked_up ?m ?g) (identified_mounting_location ?m ?d) (not(motor_aligned ?m)))
+    :effect (and (motor_aligned ?m) (fixed ?m) (free ?g) (not(picked_up ?m ?g)) (not(identified_component ?m))) ; The component is not identified anymore, since it's position is changed
 )
-; OSS: in questo caso si aggiunge il fatto che per essere manipolato il motore deve essere stato identificato
 
 ; REGULATOR MECHANISM INSTALLATION
 
 (:action fix_regulator_mechanism
-    :parameters (?g - gripper ?r - regulator_mechanism ?w - working_table ?m - motor)
-    :precondition (and (at ?r ?w) (at-robby ?w) (manipulated ?r) (identified_mounting_location ?r) (identified_component ?m) (picked_up ?r ?g) (motor_aligned) (not(regulator_mechanism_fixed_to_motor)))
-    :effect (and (regulator_mechanism_fixed_to_motor) (fixed ?r) (free ?g) (not(identified_component ?r))) ; The component is not identified anymore, since it's position is changed
+    :parameters (?g - gripper ?r - regulator_mechanism ?d - door_frame ?w - working_table ?m - motor)
+    :precondition (and (at ?r ?w) (at-robby ?w) (manipulated ?r) (identified_mounting_location ?r ?d) (identified_component ?m) (picked_up ?r ?g) (motor_aligned ?m) (not(regulator_mechanism_fixed_to_motor ?r)))
+    :effect (and (regulator_mechanism_fixed_to_motor ?r) (fixed ?r) (free ?g) (not(picked_up ?r ?g)) (not(identified_component ?r)) ) ; The component is not identified anymore, since it's position is changed
 )
 
 ; MOUNTING BRACKET INSTALLATION
 (:action mount_mounting_bracket
-    :parameters (?g - gripper ?mb - mounting_bracket ?w - working_table)
-    :precondition (and (at ?mb ?w) (at-robby ?w) (identified_mounting_location ?mb) (manipulated ?mb) (picked_up ?mb ?g) (not(mounted_component ?mb)) (regulator_mechanism_fixed_to_motor))
-    :effect (and (mounted_component ?mb)) ; In questo caso non ho considerato che si è spostato dato che non è necessario per il poi
+    :parameters (?g - gripper ?mb - mounting_bracket ?m - motor ?d - door_frame ?r - regulator_mechanism ?w - working_table)
+    :precondition (and (at ?mb ?w) (at-robby ?w) (identified_mounting_location ?mb ?d) (manipulated ?mb) (picked_up ?mb ?g) (not(mounted_component ?mb)) (motor_aligned ?m) (regulator_mechanism_fixed_to_motor ?r))
+    :effect (and (mounted_component ?mb) (not(picked_up ?mb ?g)) (free ?g) (not(identified_component ?mb))) 
 )
-; Remember to fix the mounting bracket before going on
 
 ; CABLE AND PULLEYS INSTALLATION
 (:action pulley_installation
-    :parameters (?g - gripper ?p - pulley ?r - regulator_mechanism ?w - working_table)
-    :precondition (and (at ?p ?w) (at-robby ?w) (identified_component ?p) (identified_component ?r) (picked_up ?p ?g) (regulator_mechanism_fixed_to_motor))
+    :parameters (?g - gripper ?p - pulley ?m - motor ?r - regulator_mechanism ?mb - mounting_bracket ?w - working_table)
+    :precondition (and (at ?p ?w) (at-robby ?w) (identified_component ?p) (identified_component ?r) (picked_up ?p ?g) (motor_aligned ?m) (regulator_mechanism_fixed_to_motor ?r) (fixed ?mb))
     :effect (and (fixed ?p) (not(picked_up ?p ?g)) (free ?g) (not(identified_component ?p)))
 )
 
-(:action pulley_tensioning
-    :parameters (?g - gripper ?p - pulley ?w - working_table)
-    :precondition (and (at-robby ?w) (at ?p ?w) (fixed ?p) (identified_component ?p) (free ?g))
-    :effect (and (pulley_tensioned))
+(:action cable_installation
+    :parameters (?g - gripper ?c - cable ?p - pulley ?w - working_table)
+    :precondition (and (at ?c ?w) (at-robby ?w) (identified_component ?c) (identified_component ?p) (picked_up ?c ?g) (fixed ?p))
+    :effect (and (cable_installed ?c) (not(picked_up ?c ?g)) (free ?g))
 )
 
-; SWITCH INSTALLATION
+(:action cable_tensioning
+    :parameters (?g - gripper ?c - cable ?w - working_table)
+    :precondition (and (at-robby ?w) (at ?c ?w) (cable_installed ?c) (free ?g))
+    :effect (and (cable_tensioned ?c))
+)
+
+; WIRES INSTALLATION
 (:action connect_switch_to_wire
-    :parameters (?g1 - gripper ?g2 - gripper ?s - switch ?wi - wire ?w - working_table)
-    :precondition (and (at ?s ?w) (at ?wi ?w) (at-robby ?w) (identified_component ?s) (identified_component ?wi) (picked_up ?s ?g1) (picked_up ?wi ?g2))
-    :effect (and (connected_switch_to_wire))
+    :parameters (?g1 - gripper ?g2 - gripper ?s - switch ?wi - wire ?m - motor ?r - regulator_mechanism ?mb - mounting_bracket ?c - cable ?w - working_table)
+    :precondition (and (at ?s ?w) (at ?wi ?w) (at-robby ?w) (identified_component ?s) (identified_component ?wi) 
+                  (picked_up ?s ?g1) (picked_up ?wi ?g2) (distinct ?g1 ?g2) (motor_aligned ?m) (regulator_mechanism_fixed_to_motor ?r) (fixed ?mb) (cable_tensioned ?c))
+    :effect (and (connected_switch_to_wire ?s ?wi))
+)
+
+(:action connect_wire_to_motor
+    :parameters (?g - gripper  ?s - switch ?m - motor ?wi - wire ?w - working_table)
+    :precondition (and (and  (at ?wi ?w) (at-robby ?w) 
+                       (identified_component ?wi) (identified_component ?m) (picked_up ?wi ?g)) (connected_switch_to_wire ?s ?wi))
+    :effect (and (connected_wire_to_motor ?wi ?m))
+)
+
+(:action connect_motor_to_battery
+    :parameters (?g - gripper ?b - battery ?m - motor ?wi - wire ?w - working_table)
+    :precondition (and (at ?m ?w) (at ?b ?w) (at-robby ?w) (identified_component ?m) (identified_component ?b) (picked_up ?wi ?g) (connected_wire_to_motor ?wi ?m))
+    :effect (and (connected_motor_to_battery ?m ?b))
 )
 
 
