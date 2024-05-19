@@ -4,25 +4,25 @@
 
     (:types 
             working_table warehouse - site
-            door_frame motor regulator_mechanism mounting_bracket cable pulley switch wire battery fastener - component ;types of components
+            door_frame motor regulator_mechanism mounting_bracket cable pulley switch wire battery fastener - component ; Types of components
             gripper 
             tool
     ) 
 
     (:predicates 
-        (at-robby ?s - site) ;robot is at site ?s
-        (at ?c - component ?s - site) ;component ?c is at site ?s 
-        (at-tool ?t - tool ?s - site) ;tool ?t is at site ?s
+        (at-robby ?s - site) ; Robot is at site ?s
+        (at ?c - component ?s - site) ; Component ?c is at site ?s 
+        (at-tool ?t - tool ?s - site) ; Tool ?t is at site ?s
 
-        (connected ?s1 - site ?s2 - site) ;site ?s1 is connected to site ?s2
+        (connected ?s1 - site ?s2 - site) ; Site ?s1 is connected to site ?s2
         (free ?g - gripper)
         (different ?g1 - gripper ?g2 - gripper)
         (picked_up ?c - component ?g - gripper)
         (picked_tool ?t - tool ?g - gripper)
         (manipulated ?c - component)
-        (fixed ?c - component)
-        (identified_component ?c - component )
-        (identified_mounting_location ?c - component ?d - door_frame)
+        (fixed ?c - component) ; Component ?c is fixed and cannot be moved anymore
+        (identified_component ?c - component ) ; Component ?c is identified (This means that the robot distinguishes the component and can manipulate it)
+        (identified_mounting_location ?c - component ?d - door_frame) ; The mounting location of component ?c is identified on the door frame ?d
         (mounted_component ?c - component)  
 
         ; MOTOR INSTALLATION 
@@ -36,7 +36,6 @@
         (cable_tensioned ?c - cable)
         
         ; WIRE INSTALLATION
-        ;(connected_wire ?wi -wire ?s - switch ?m - motor ?b - battery) 
         (connected_switch_to_wire ?s - switch ?wi - wire)
         (connected_wire_to_motor ?wi - wire ?m - motor) 
         (connected_motor_to_battery ?m - motor ?b - battery)
@@ -44,13 +43,14 @@
 
     (:action robot_move
         :parameters (?from - site ?to - site ?g1 - gripper ?g2 - gripper)
-        :precondition (and (at-robby ?from) (different ?g1 ?g2) (or (connected ?from ?to) (connected ?to ?from)) (or (free ?g1) (free ?g2))) ; This force the robot to move only one component at time from the warehouse
+        :precondition (and (at-robby ?from) (different ?g1 ?g2) (or (connected ?from ?to) (connected ?to ?from)) 
+                       (or (free ?g1) (free ?g2))) ; This force the robot to move only one component at time from the warehouse
         :effect(and (not (at-robby ?from)) (at-robby ?to)
                     (forall (?c - component) 
                             (not (identified_component ?c))) ; When the robot moves from a site, the components are not identified anymore
                     (forall (?c - component) 
                     (when (or (picked_up ?c ?g1) (picked_up ?c ?g2))
-                    (and (not (at ?c ?from)) (at ?c ?to) (identified_component ?c))))) ; When the robot moves the component, the component moves with it and it is identified
+                    (and (not (at ?c ?from)) (at ?c ?to) (identified_component ?c))))) ; When the robot moves the component, the component moves with it and it remains identified
     )
 
     (:action pick_up
@@ -77,7 +77,7 @@
         :effect (and (identified_mounting_location ?c ?d))
     )
         
-    (:action manipulate_component
+    (:action manipulate_component ; This action is used to change position or alignment of the component
             :parameters (?c - component ?g - gripper ?d - door_frame)
             :precondition (and (identified_component ?c) (identified_mounting_location ?c ?d) (picked_up ?c ?g))
             :effect (and (manipulated ?c))
@@ -95,12 +95,6 @@
         :effect (and (at-tool ?t ?w) (free ?g) (not(picked_tool ?t ?g)))
     )
 
-    ;(:action manipulate_fasteners
-    ;    :parameters (?c - component ?g1 - gripper ?g2 - gripper ?f - fastener ?w - working_table ?t - tool)
-    ;    :precondition (and (at ?c ?w) (at-robby ?w) (different ?g1 ?g2) (picked_tool ?t ?g1) (picked_up ?f ?g2) (mounted_component ?c))
-    ;    :effect (and (manipulated ?))
-    ;)
-
     ; MOTOR INSTALLATION
     (:action align_motor
         :parameters (?g - gripper ?m - motor ?w - working_table ?d - door_frame)
@@ -110,7 +104,6 @@
     )
 
     ; REGULATOR MECHANISM INSTALLATION
-
     (:action fix_regulator_mechanism
         :parameters (?g - gripper ?r - regulator_mechanism ?d - door_frame ?w - working_table ?m - motor)
         :precondition (and (at ?r ?w) (at-robby ?w) 
@@ -133,9 +126,8 @@
         :precondition (and (at ?mb ?w) (at-robby ?w)
                     (identified_component ?mb) (mounted_component ?mb) (picked_tool ?t ?g1) (picked_up ?f ?g2) (different ?g1 ?g2) (manipulated ?f)
                     (motor_aligned ?m) (regulator_mechanism_fixed_to_motor ?r))
-        :effect (and (fixed ?mb) (free ?g2) (not(picked_up ?f ?g2))) ; Once the mounting bracket is fixed, the gripper holding the fastener is free
+        :effect (and (fixed ?mb) (fixed ?f) (free ?g2) (not(picked_up ?f ?g2))) ; Once the mounting bracket is fixed, the gripper holding the fastener is free
     )
-
 
     ; CABLE AND PULLEYS INSTALLATION
     (:action pulley_installation
@@ -161,15 +153,8 @@
                         (fixed ?p) (motor_aligned ?m) (regulator_mechanism_fixed_to_motor ?r) (fixed ?mb))
         :effect (and (cable_tensioned ?c))
     )
-
-    ; WIRES INSTALLATION
-;    (:action connect_wire
-;        :parameters (?s - switch ?wi - wire ?m - motor ?b - battery ?w - working_table ?r - regulator_mechanism ?mb - mounting_bracket ?c - cable)
-;        :precondition (and (at ?s ?w) (at ?wi ?w) (at ?b ?w) (at-robby ?w) (identified_component ?s) (identified_component ?wi) (identified_component ?b)
-;                      (not(connected_wire ?wi ?s ?m ?b)) (motor_aligned ?m) (regulator_mechanism_fixed_to_motor ?r) (fixed ?mb) (cable_tensioned ?c))
-;       :effect (and (connected_wire ?wi ?s ?m ?b) )
-;    )
     
+    ; WIRE INSTALLATION
     (:action connect_switch_to_wire
         :parameters (?g1 - gripper ?g2 - gripper ?s - switch ?wi - wire ?m - motor ?r - regulator_mechanism ?mb - mounting_bracket ?c - cable ?w - working_table)
         :precondition (and (at ?s ?w) (at ?wi ?w) (at-robby ?w) (identified_component ?s) (identified_component ?wi) 
@@ -193,6 +178,5 @@
                        (connected_wire_to_motor ?wi ?m)(connected_switch_to_wire ?s ?wi) (motor_aligned ?m) (regulator_mechanism_fixed_to_motor ?r) (fixed ?mb) (cable_tensioned ?c))
         :effect (and (connected_motor_to_battery ?m ?b))
     )
-
 
     )
