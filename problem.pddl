@@ -36,6 +36,7 @@
         (free right)
         (different right left)
         (fixed door_frame)
+        (fixed battery)
 
     )
 
