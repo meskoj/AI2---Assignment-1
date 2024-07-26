@@ -1,4 +1,7 @@
-    (define (domain assignment)
+; Topic 1: Robot Assembly
+; Author: Marco Meschini 
+; Matricola: S6273938
+(define (domain robot_assembly)
 
     (:requirements :strips :typing :conditional-effects :negative-preconditions :disjunctive-preconditions)
 

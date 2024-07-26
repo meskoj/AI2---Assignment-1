@@ -1,6 +1,7 @@
+; Solved using BFWS planner
 (define 
-    (problem problem1) 
-    (:domain assignment)
+    (problem problem_1) 
+    (:domain robot_assembly)
     (:objects 
         warehouse - warehouse
         working_table - working_table
